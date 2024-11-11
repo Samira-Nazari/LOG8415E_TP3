@@ -1,0 +1,7 @@
+{
+    "key_name" :"TP3_pem_3" ,
+    "vpc_id": "vpc-0012e540f3747ea22",
+    "subnets": ["subnet-001ad4653597db4b8", "subnet-02c16ed1dc27c8d2f", "subnet-02c09ff9ceb6ffc76"],
+    "security_group": "sg-01ff76ff10155bdc6"
+}
+  

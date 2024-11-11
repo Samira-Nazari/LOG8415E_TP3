@@ -1,0 +1,11 @@
+C:\Users\samir>mkdir LOG8415E_TP3
+
+C:\Users\samir>cd LOG8415E_TP3
+
+C:\Users\samir\LOG8415E_TP3>git clone https://github.com/Samira-Nazari/LOG8415E_TP3.git .
+
+C:\Users\samir\LOG8415E_TP3>git status
+
+C:\Users\samir\LOG8415E_TP3>git checkout -b V2
+
+C:\Users\samir\LOG8415E_TP3>git status

@@ -1,0 +1,29 @@
+sudo mysql -u root <<EOF2
+USE sakila;
+SHOW FULL TABLES;
+EOF2
+
+# is done in linux
+ubuntu@ip-172-31-38-78:~$ sudo mysql -u root <<EOF2
+USE sakila;
+SHOW FULL TABLES;
+EOF2
+
+# entering in sql
+sudo mysql -u root 
+
+ctrl+z:
+exit
+
+# execute in sql
+USE sakila;
+SHOW FULL TABLES;
+select * from actor;
+
+mysql>USE sakila;
+mysql>SHOW FULL TABLES;
+mysql>select * from actor;
+
+
+
+
