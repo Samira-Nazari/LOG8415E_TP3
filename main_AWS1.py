@@ -18,17 +18,34 @@ def install_to_instance(ip_address):
     
 
 def setup_proxy_server(proxy_ip, manager_ip, worker_ips):
-    # Transfer the proxy_server.py to the Proxy instance
+    # Transfer the PEM file to the Proxy instance
     print(f"Starting setting up proxy server in IP: {proxy_ip}")
+    
+    # Copy PEM file to proxy server
     subprocess.run([
-        "scp", "-i", "TP3_pem_3.pem", "-o", "StrictHostKeyChecking=no",
-        "proxy_server7.py", f"ubuntu@{proxy_ip}:/home/ubuntu/proxy_server7.py"
+        "scp", "-i", KEY_PATH, "-o", "StrictHostKeyChecking=no",
+        KEY_PATH, f"ubuntu@{proxy_ip}:/home/ubuntu/.ssh/TP3_pem_3.pem"
+    ])
+    print(f"PEM file copied to {proxy_ip}:/home/ubuntu/.ssh/TP3_pem_3.pem")
+
+    # SSH into the proxy instance and set correct permissions for the PEM file
+    ssh_command = [
+        "ssh", "-i", KEY_PATH, "-o", "StrictHostKeyChecking=no",
+        f"ubuntu@{proxy_ip}", "chmod 600 /home/ubuntu/.ssh/TP3_pem_3.pem"
+    ]
+    subprocess.run(ssh_command)
+    print(f"Permissions set for PEM file on {proxy_ip}")
+
+    # Transfer proxy_server.py to the Proxy instance
+    subprocess.run([
+        "scp", "-i", KEY_PATH, "-o", "StrictHostKeyChecking=no",
+        "proxy_server8.py", f"ubuntu@{proxy_ip}:/home/ubuntu/proxy_server8.py"
     ])
 
     # Run proxy_server.py with the IPs as arguments
-    command = f"python3 /home/ubuntu/proxy_server7.py {manager_ip} {worker_ips[0]} {worker_ips[1]}"
+    command = f"python3 /home/ubuntu/proxy_server8.py {manager_ip} {worker_ips[0]} {worker_ips[1]}"
     subprocess.run([
-        "ssh", "-i", "TP3_pem_3.pem", "-o", "StrictHostKeyChecking=no",
+        "ssh", "-i", KEY_PATH, "-o", "StrictHostKeyChecking=no",
         f"ubuntu@{proxy_ip}", command
     ])
     print(f"End of setting up proxy server in IP: {proxy_ip}")
@@ -97,6 +114,10 @@ def main():
             print(f"No public IP found for instance {instance.id}")
 
      # Deploy proxy_server.py on the Proxy instance with the correct IP addresses
+
+    print(f"Manager IP: {manager_ip}")
+    print(f"Worker IPs: {worker_ips}")
+    print(f"Proxy IP: {proxy_ip}")
     setup_proxy_server(proxy_ip, manager_ip, worker_ips)
 
     print(f"Manager IP: {manager_ip}")

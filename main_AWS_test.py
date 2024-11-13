@@ -4,8 +4,6 @@ from terminate import terminate_instances
 import json
 import subprocess
 
-KEY_PATH="TP3_pem_3.pem" 
-
 def install_to_instance(ip_address):
     ip_parts = ip_address.split('.')
     git_bash_path = "C:/Program Files/Git/bin/bash.exe"
@@ -22,11 +20,11 @@ def setup_proxy_server(proxy_ip, manager_ip, worker_ips):
     print(f"Starting setting up proxy server in IP: {proxy_ip}")
     subprocess.run([
         "scp", "-i", "TP3_pem_3.pem", "-o", "StrictHostKeyChecking=no",
-        "proxy_server7.py", f"ubuntu@{proxy_ip}:/home/ubuntu/proxy_server7.py"
+        "proxy_server8.py", f"ubuntu@{proxy_ip}:/home/ubuntu/proxy_server8.py"
     ])
 
     # Run proxy_server.py with the IPs as arguments
-    command = f"python3 /home/ubuntu/proxy_server7.py {manager_ip} {worker_ips[0]} {worker_ips[1]}"
+    command = f"python3 /home/ubuntu/proxy_server8.py {manager_ip} {worker_ips[0]} {worker_ips[1]}"
     subprocess.run([
         "ssh", "-i", "TP3_pem_3.pem", "-o", "StrictHostKeyChecking=no",
         f"ubuntu@{proxy_ip}", command
@@ -63,40 +61,15 @@ def main():
         print("Failed to create security group. Exiting.")
         return
 
-    # Create 3 t2.micros instances
-    print("Creating 3 t2.micro instance...")
-    instances = create_ec2_instance('t2.micro', 3, key_name, security_group_id,'InstanceTest', 'MySQLNodeinstance')
-    
-    # Create 1 t2.large instance
-    print("Creating 1 t2.large instance for Proxy...")
-    proxy_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'Proxy')
-
-    # Assign roles to instances
-    manager_ip = instances[0].public_ip_address
-    worker_ips = [instances[1].public_ip_address, instances[2].public_ip_address]
-    proxy_ip = proxy_instance[0].public_ip_address
+    manager_ip  = '54.196.224.221'
+    worker_ips  = ['107.20.87.110', '98.81.60.186']
+    proxy_ip = '35.174.171.237'
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
     print(f"Proxy IP: {proxy_ip}")
 
-    # Concating all instances
-    all_instances = instances + proxy_instance
-    instance_ids = [instance.id for instance in all_instances]
-
-    # Installing in Instances
-    for instance in instances:
-        # Wait until instance is running and public IP is available
-        #instance.wait_until_running()
-        #instance.reload()
-    
-        public_ip = instance.public_ip_address
-        if public_ip:
-            install_to_instance(public_ip)
-        else:
-            print(f"No public IP found for instance {instance.id}")
-
-     # Deploy proxy_server.py on the Proxy instance with the correct IP addresses
+    # Deploy proxy_server.py on the Proxy instance with the correct IP addresses
     setup_proxy_server(proxy_ip, manager_ip, worker_ips)
 
     print(f"Manager IP: {manager_ip}")

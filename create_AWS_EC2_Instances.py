@@ -6,7 +6,7 @@ from botocore.exceptions import ClientError
 # The 'ec2' resource allows interaction with EC2 services in the specified AWS region.
 ec2 = boto3.resource('ec2', region_name='us-east-1')
 
-def create_ec2_instance(instance_type, count, key_name, security_group_id):
+def create_ec2_instance(instance_type, count, key_name, security_group_id, KeyName, ValueName):
     """
     Creates one or more EC2 instances of the specified type.
 
@@ -32,7 +32,8 @@ def create_ec2_instance(instance_type, count, key_name, security_group_id):
                 {
                     'ResourceType': 'instance', 
                     # 'Tags': [{'Key': 'InstanceTest', 'Value': f'{instance_type} instance'}]  
-                    'Tags': [{'Key': 'InstanceTest', 'Value': f'{instance_type} MySQLNodeinstance'}]  # Custom tag for instance type.
+                    #'Tags': [{'Key': 'InstanceTest', 'Value': f'{instance_type} MySQLNodeinstance'}]
+                    'Tags': [{'Key': KeyName, 'Value': f'{instance_type} {ValueName}'}]  # Custom tag for instance type.
                 }
             ]
         )
