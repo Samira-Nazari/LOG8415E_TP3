@@ -15,6 +15,28 @@ def install_to_instance(ip_address):
         print(f"Installed Mysql, Sakila, Sysbench correctly for {ip_address}")
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
+
+def setup_worker(ip_address):
+    ip_parts = ip_address.split('.')
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
+    try:
+        print(f"Starting Installing fastapi worker for {ip_address}")
+        subprocess.run([git_bash_path, "./setup_fastapi_worker.sh", *ip_parts], check=True)
+        print(f"Installed fastapi worker correctly for {ip_address}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during Installing fastapi worker for {ip_address}: {e.stderr}")
+
+def setup_proxy(proxy_ip, manager_ip, worker_ips):
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"  # Adjust if Git Bash is installed elsewhere
+    # Convert the list of worker IPs to a comma-separated string
+    worker_ips_str = ",".join(worker_ips)
+    try:
+        print(f"Starting to set up FastAPI proxy for {proxy_ip}")
+        # Pass the three parameters to the bash script
+        subprocess.run([git_bash_path, "./setup_fastapi_proxy.sh", proxy_ip, manager_ip, worker_ips_str], check=True)
+        print(f"FastAPI proxy setup completed for {proxy_ip}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during FastAPI proxy setup for {proxy_ip}: {e.stderr}")
     
 
 def setup_proxy_server(proxy_ip, manager_ip, worker_ips):
@@ -103,10 +125,7 @@ def main():
 
     # Installing in Instances
     for instance in instances:
-        # Wait until instance is running and public IP is available
-        #instance.wait_until_running()
-        #instance.reload()
-    
+        
         public_ip = instance.public_ip_address
         if public_ip:
             install_to_instance(public_ip)
@@ -118,7 +137,14 @@ def main():
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
     print(f"Proxy IP: {proxy_ip}")
-    setup_proxy_server(proxy_ip, manager_ip, worker_ips)
+
+    # Deply worker_fastapi.py on the worker instances
+    setup_worker(worker_ips[0])
+    setup_worker(worker_ips[1])
+
+    # Deploy proxy_server_fastapi_route.py on the the proxy instance
+    setup_proxy(proxy_ip, manager_ip, worker_ips)
+
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
