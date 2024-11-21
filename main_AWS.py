@@ -15,35 +15,65 @@ def install_to_instance(ip_address):
         print(f"Installed Mysql, Sakila, Sysbench correctly for {ip_address}")
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
-    
+
+def setup_worker(ip_address):
+    ip_parts = ip_address.split('.')
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
+    try:
+        print(f"Starting Installing fastapi worker for {ip_address}")
+        subprocess.run([git_bash_path, "./setup_fastapi_worker.sh", *ip_parts], check=True)
+        print(f"Installed fastapi worker correctly for {ip_address}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during Installing fastapi worker for {ip_address}: {e.stderr}")
+
+def setup_proxy(proxy_ip, manager_ip, worker_ips):
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"  # Adjust if Git Bash is installed elsewhere
+    # Convert the list of worker IPs to a comma-separated string
+    worker_ips_str = ",".join(worker_ips)
+    try:
+        print(f"Starting to set up FastAPI proxy for {proxy_ip}")
+        # Pass the three parameters to the bash script
+        subprocess.run([git_bash_path, "./setup_fastapi_proxy.sh", proxy_ip, manager_ip, worker_ips_str], check=True)
+        print(f"FastAPI proxy setup completed for {proxy_ip}")
+    except subprocess.CalledProcessError as e:
+        #print(f"Error during FastAPI proxy setup for {proxy_ip}: {e.stderr}")
+        print(f"Error during proxy setup for {proxy_ip}: {e}")
+
 
 def setup_proxy_server(proxy_ip, manager_ip, worker_ips):
-    # Transfer the proxy_server.py to the Proxy instance
+    # Transfer the PEM file to the Proxy instance
     print(f"Starting setting up proxy server in IP: {proxy_ip}")
+    
+    # Copy PEM file to proxy server
     subprocess.run([
-        "scp", "-i", "TP3_pem_3.pem", "-o", "StrictHostKeyChecking=no",
-        "proxy_server7.py", f"ubuntu@{proxy_ip}:/home/ubuntu/proxy_server7.py"
+        "scp", "-i", KEY_PATH, "-o", "StrictHostKeyChecking=no",
+        KEY_PATH, f"ubuntu@{proxy_ip}:/home/ubuntu/.ssh/TP3_pem_3.pem"
+    ])
+    print(f"PEM file copied to {proxy_ip}:/home/ubuntu/.ssh/TP3_pem_3.pem")
+
+    # SSH into the proxy instance and set correct permissions for the PEM file
+    ssh_command = [
+        "ssh", "-i", KEY_PATH, "-o", "StrictHostKeyChecking=no",
+        f"ubuntu@{proxy_ip}", "chmod 600 /home/ubuntu/.ssh/TP3_pem_3.pem"
+    ]
+    subprocess.run(ssh_command)
+    print(f"Permissions set for PEM file on {proxy_ip}")
+
+    # Transfer proxy_server.py to the Proxy instance
+    subprocess.run([
+        "scp", "-i", KEY_PATH, "-o", "StrictHostKeyChecking=no",
+        "proxy_server.py", f"ubuntu@{proxy_ip}:/home/ubuntu/proxy_server.py"
     ])
 
     # Run proxy_server.py with the IPs as arguments
-    command = f"python3 /home/ubuntu/proxy_server7.py {manager_ip} {worker_ips[0]} {worker_ips[1]}"
+    command = f"python3 /home/ubuntu/proxy_server.py {manager_ip} {worker_ips[0]} {worker_ips[1]}"
     subprocess.run([
-        "ssh", "-i", "TP3_pem_3.pem", "-o", "StrictHostKeyChecking=no",
+        "ssh", "-i", KEY_PATH, "-o", "StrictHostKeyChecking=no",
         f"ubuntu@{proxy_ip}", command
     ])
     print(f"End of setting up proxy server in IP: {proxy_ip}")
 
 
-'''
-def setup_proxy_server(proxy_ip, manager_ip, worker_ips):
-    # Transfer the proxy_server.py to the Proxy instance
-    print(f"Setting up proxy server on IP: {proxy_ip}")
-    subprocess.run([
-        "scp", "-i", "TP3_pem_3.pem", "-o", "StrictHostKeyChecking=no",
-        "proxy_server.py", f"ubuntu@{proxy_ip}:/home/ubuntu/proxy_server.py"
-    ])
-    print(f"Proxy server setup completed on IP: {proxy_ip}")
-'''
 
 def main():
     # Load the JSON file
@@ -86,10 +116,7 @@ def main():
 
     # Installing in Instances
     for instance in instances:
-        # Wait until instance is running and public IP is available
-        #instance.wait_until_running()
-        #instance.reload()
-    
+        
         public_ip = instance.public_ip_address
         if public_ip:
             install_to_instance(public_ip)
@@ -97,7 +124,18 @@ def main():
             print(f"No public IP found for instance {instance.id}")
 
      # Deploy proxy_server.py on the Proxy instance with the correct IP addresses
-    setup_proxy_server(proxy_ip, manager_ip, worker_ips)
+
+    print(f"Manager IP: {manager_ip}")
+    print(f"Worker IPs: {worker_ips}")
+    print(f"Proxy IP: {proxy_ip}")
+
+    # Deply worker_fastapi.py on the worker instances
+    setup_worker(worker_ips[0])
+    setup_worker(worker_ips[1])
+
+    # Deploy proxy_server_fastapi_route.py on the the proxy instance
+    setup_proxy(proxy_ip, manager_ip, worker_ips)
+
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")

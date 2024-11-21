@@ -10,44 +10,79 @@ fi
 PROXY_IP=$1
 MANAGER_IP=$2
 WORKER_IPS=$3
-PEM_FILE="TP3_pem_3.pem"
+KEY_PATH="TP3_pem_3.pem"
+REMOTE_USER="ubuntu"
+MAX_RETRIES=5
+RETRY_DELAY=30
+APP_FILE="proxy_server_fastapi_route.py"
 
-# Step 1: Install python3-venv and Python dependencies in a virtual environment on the proxy server
-echo "Installing python3-venv and creating a virtual environment on the proxy server..."
-ssh -i "$PEM_FILE" -o "StrictHostKeyChecking=no" ubuntu@"$PROXY_IP" <<EOF
-    # Update the package list and install python3-venv if not already installed
-    sudo apt-get update
-    sudo apt-get install -y python3-venv
+function attempt_ssh() {
+    ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no -o ConnectTimeout=10 $REMOTE_USER@$1 "echo 'Connected'"
+}
 
-    # Create a virtual environment
-    python3 -m venv /home/ubuntu/fastapi_env
+# Retry loop to wait for SSH availability
+for ((i=1; i<=MAX_RETRIES; i++)); do
+    echo "Attempting to connect to proxy server ${PROXY_IP} (attempt $i of $MAX_RETRIES)..."
+    if attempt_ssh "${PROXY_IP}"; then
+        echo "Connection successful to proxy server."
+        break
+    else
+        echo "SSH not ready in proxy server. Retrying in $RETRY_DELAY seconds..."
+        sleep $RETRY_DELAY
+    fi
+    if [ $i -eq $MAX_RETRIES ]; then
+        echo "Max retries reached. SSH connection failed in proxy server."
+        exit 1
+    fi
+done
 
-    # Activate the virtual environment
-    source /home/ubuntu/fastapi_env/bin/activate
+# Step 0: Upload the FastAPI proxy app file
+echo "Uploading the FastAPI proxy app file..."
+scp -i "$KEY_PATH" "$APP_FILE" $REMOTE_USER@"${PROXY_IP}":~/
+
+# Step 1: Install Python dependencies and set up the FastAPI proxy server
+echo "Installing Python dependencies and setting up the FastAPI proxy server..."
+ssh -i "$KEY_PATH" -o "StrictHostKeyChecking=no" $REMOTE_USER@"$PROXY_IP" <<EOF
+    # Update system and install dependencies
+    sudo apt update
+    sudo apt install python3-pip python3-venv -y
+
+    # Set up a virtual environment
+    python3 -m venv ~/fastapi_env
+    source ~/fastapi_env/bin/activate
 
     # Install dependencies inside the virtual environment
     pip install fastapi uvicorn httpx
+
+    # Prepare the application directory
+    mkdir -p ~/fastapi_proxy
+    mv ~/proxy_server_fastapi_route.py ~/fastapi_proxy/
+
+    # Create a systemd service file for FastAPI
+    echo "[Unit]
+    Description=FastAPI Proxy Service
+    After=network.target
+
+    [Service]
+    User=${REMOTE_USER}
+    WorkingDirectory=/home/${REMOTE_USER}/fastapi_proxy
+    ExecStart=/home/${REMOTE_USER}/fastapi_env/bin/uvicorn proxy_server_fastapi_route:app --host 0.0.0.0 --port 8000
+    Environment=MANAGER_IP=${MANAGER_IP}
+    Environment=WORKER_IPS=${WORKER_IPS}
+    Restart=always
+    StandardOutput=file:/home/${REMOTE_USER}/fastapi_proxy/fastapi.log
+    StandardError=file:/home/${REMOTE_USER}/fastapi_proxy/fastapi_error.log
+
+    [Install]
+    WantedBy=multi-user.target" | sudo tee /etc/systemd/system/fastapi_proxy.service > /dev/null
+
+    # Reload systemd and start the FastAPI service
+    sudo systemctl daemon-reload
+    sudo systemctl enable fastapi_proxy
+    sudo systemctl restart fastapi_proxy
+
+    echo "FastAPI proxy service has been successfully deployed and started."
 EOF
 
-# Step 2: Transfer the FastAPI script to the proxy server
-echo "Transferring proxy_server_fastapi_route.py to the proxy server..."
-scp -i "$PEM_FILE" -o "StrictHostKeyChecking=no" proxy_server_fastapi_route.py ubuntu@"$PROXY_IP":/home/ubuntu/proxy_server_fastapi_route.py
-
-# Step 3: Set environment variables directly for the current session
-echo "Setting environment variables on the proxy server..."
-ssh -i "$PEM_FILE" -o "StrictHostKeyChecking=no" ubuntu@"$PROXY_IP" <<EOF
-    export MANAGER_IP=$MANAGER_IP
-    export WORKER_IPS=$WORKER_IPS
-EOF
-
-# Step 4: Start the FastAPI proxy server with the correct host binding
-echo "Starting the FastAPI proxy server..."
-ssh -i "$PEM_FILE" -o "StrictHostKeyChecking=no" ubuntu@"$PROXY_IP" <<EOF
-    # Activate the virtual environment
-    source /home/ubuntu/fastapi_env/bin/activate
-
-    # Run FastAPI with uvicorn
-    nohup uvicorn /home/ubuntu/proxy_server_fastapi_route.py:app --host 0.0.0.0 --port 8000 > /home/ubuntu/proxy_server.log 2>&1 &
-EOF
-
+# Final message
 echo "FastAPI proxy server deployed successfully on $PROXY_IP."

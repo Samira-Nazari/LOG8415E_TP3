@@ -24,17 +24,7 @@ def setup_worker(ip_address):
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing fastapi worker for {ip_address}: {e.stderr}")
 
-'''
-def setup_proxy(proxy_ip, manager_ip, worker_ips):
-    git_bash_path = "C:/Program Files/Git/bin/bash.exe"  # Adjust if Git Bash is installed elsewhere
-    try:
-        print(f"Starting to set up FastAPI proxy for {proxy_ip}")
-        # Pass the three parameters to the bash script
-        subprocess.run([git_bash_path, "./setup_fastapi_proxy.sh", proxy_ip, manager_ip, worker_ips], check=True)
-        print(f"FastAPI proxy setup completed for {proxy_ip}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during FastAPI proxy setup for {proxy_ip}: {e.stderr}")
-'''
+
 
 
 def setup_proxy(proxy_ip, manager_ip, worker_ips):
@@ -96,10 +86,11 @@ def main():
         print("Failed to create security group. Exiting.")
         return
 
-    manager_ip  = '54.242.77.197'
-    worker_ips  = ['54.224.155.172', '44.223.6.53']
-    proxy_ip = '54.198.237.52'
+    manager_ip  = '3.83.254.31'
+    worker_ips  = ['44.211.130.64', '3.95.134.40']
+    proxy_ip = '54.242.20.195'
 
+   
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
     print(f"Proxy IP: {proxy_ip}")
