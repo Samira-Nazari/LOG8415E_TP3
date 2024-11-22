@@ -17,15 +17,17 @@ def connect_to_database():
     try:
         connection = mysql.connector.connect(**db_config)
         if connection.is_connected():
+            connection.autocommit = True  # Enable auto-commit
             print("Successfully connected to the database")
         return connection
     except Error as e:
         print(f"Error connecting to database: {e}")
         return None
+
         
 @app.get("/")
 async def root():
-    return {"message": "Worker is running!"}
+    return {"message": "Manager is running!"}
 
 @app.post("/execute")
 async def execute_query(request: Request):
@@ -35,6 +37,10 @@ async def execute_query(request: Request):
         query = data.get("query")
         if not query:
             return {"error": "No query provided"}
+        if "select" in query.lower():
+            query_type = "read"
+        else:
+            query_type = "write"
 
         # Connect to the database
         connection = connect_to_database()
@@ -44,10 +50,20 @@ async def execute_query(request: Request):
         # Execute the query
         cursor = connection.cursor(dictionary=True)
         cursor.execute(query)
-        result = cursor.fetchall()  # Fetch all results of the query
+        #result = cursor.fetchall()  # Fetch all results of the query
+        #result = cursor.fetchall() if query_type == "read" else []  # Fetch results only for read queries
+        if query_type == "read":
+            result = cursor.fetchall()  # Fetch results for SELECT queries
+        else:
+            result = {"affected_rows": cursor.rowcount}  # Get number of affected rows for write queries
         cursor.close()
         connection.close()
 
-        return {"status": "success", "type": "read", "data": result}
+        
+
+        return {"status": "success", "type": query_type, "data": result}
     except Exception as e:
         return {"status": "error", "message": str(e)}
+    except Error as db_error:
+        print(f"Database error: {db_error}")
+        return {"status": "error", "message": str(db_error)}

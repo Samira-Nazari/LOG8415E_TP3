@@ -26,6 +26,16 @@ def setup_worker(ip_address):
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing fastapi worker for {ip_address}: {e.stderr}")
 
+def setup_manager(ip_address):
+    ip_parts = ip_address.split('.')
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
+    try:
+        print(f"Starting Installing fastapi manager for {ip_address}")
+        subprocess.run([git_bash_path, "./setup_fastapi_manager.sh", *ip_parts], check=True)
+        print(f"Installed fastapi manager correctly for {ip_address}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during Installing fastapi manager for {ip_address}: {e.stderr}")
+
 def setup_proxy(proxy_ip, manager_ip, worker_ips):
     git_bash_path = "C:/Program Files/Git/bin/bash.exe"  # Adjust if Git Bash is installed elsewhere
     # Convert the list of worker IPs to a comma-separated string
@@ -132,6 +142,7 @@ def main():
     # Deply worker_fastapi.py on the worker instances
     setup_worker(worker_ips[0])
     setup_worker(worker_ips[1])
+    setup_manager(manager_ip)
 
     # Deploy proxy_server_fastapi_route.py on the the proxy instance
     setup_proxy(proxy_ip, manager_ip, worker_ips)

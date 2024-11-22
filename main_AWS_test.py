@@ -24,7 +24,15 @@ def setup_worker(ip_address):
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing fastapi worker for {ip_address}: {e.stderr}")
 
-
+def setup_manager(ip_address):
+    ip_parts = ip_address.split('.')
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
+    try:
+        print(f"Starting Installing fastapi manager for {ip_address}")
+        subprocess.run([git_bash_path, "./setup_fastapi_manager.sh", *ip_parts], check=True)
+        print(f"Installed fastapi manager correctly for {ip_address}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during Installing fastapi manager for {ip_address}: {e.stderr}")
 
 
 def setup_proxy(proxy_ip, manager_ip, worker_ips):
@@ -86,9 +94,10 @@ def main():
         print("Failed to create security group. Exiting.")
         return
 
-    manager_ip  = '3.83.254.31'
-    worker_ips  = ['44.211.130.64', '3.95.134.40']
-    proxy_ip = '54.242.20.195'
+    manager_ip  = '3.94.114.40'
+    worker_ips  = ['18.212.64.238', '3.87.182.93']
+    proxy_ip = '98.84.98.234'
+    
 
    
     print(f"Manager IP: {manager_ip}")
@@ -102,7 +111,10 @@ def main():
     #setup_worker(worker_ips[1])
 
     # Deploy proxy_server_fastapi_route.py on the the proxy instance
-    setup_proxy(proxy_ip, manager_ip, worker_ips)
+    #setup_proxy(proxy_ip, manager_ip, worker_ips)
+
+    # Deply manager_fastapi.py on the worker instances
+    setup_manager(manager_ip)
 
 
     print(f"Manager IP: {manager_ip}")
