@@ -1,4 +1,6 @@
 from create_AWS_security_groups import create_security_group
+from create_AWS_security_groups_gatekeeper import create_gatekeeper_security_group
+from create_AWS_security_groups_trustedhost import create_trusted_host_security_group
 from create_AWS_EC2_Instances import create_ec2_instance
 from terminate import terminate_instances
 import json
@@ -49,6 +51,27 @@ def setup_proxy(proxy_ip, manager_ip, worker_ips):
         #print(f"Error during FastAPI proxy setup for {proxy_ip}: {e.stderr}")
         print(f"Error during proxy setup for {proxy_ip}: {e}")
 
+def setup_gatekeeper(gatekeeper_ip, trusted_host_ip):
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"  # Adjust if Git Bash is installed elsewhere
+    try:
+        print(f"Starting to set up FastAPI gatekeeper for {gatekeeper_ip}")
+        # Pass the three parameters to the bash script
+        subprocess.run([git_bash_path, "./setup_fastapi_gatekeeper.sh", gatekeeper_ip, trusted_host_ip], check=True)
+        print(f"FastAPI gatekeeper setup completed for {gatekeeper_ip}")
+    except subprocess.CalledProcessError as e:
+        #print(f"Error during FastAPI gatekeeper setup for {gatekeeper_ip}: {e.stderr}")
+        print(f"Error during gatekeeper setup for {gatekeeper_ip}: {e}")
+
+def setup_trusted_host(trusted_host_ip, proxy_ip):
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"  # Adjust if Git Bash is installed elsewhere
+    try:
+        print(f"Starting to set up FastAPI trusted_host for {trusted_host_ip}")
+        # Pass the three parameters to the bash script
+        subprocess.run([git_bash_path, "./setup_fastapi_trusted_host.sh", trusted_host_ip, proxy_ip], check=True)
+        print(f"FastAPI trusted_host setup completed for {trusted_host_ip}")
+    except subprocess.CalledProcessError as e:
+        #print(f"Error during FastAPI trusted_host setup for {trusted_host_ip}: {e.stderr}")
+        print(f"Error during trusted_host setup for {trusted_host_ip}: {e}")
 
 def setup_proxy_server(proxy_ip, manager_ip, worker_ips):
     # Transfer the PEM file to the Proxy instance
@@ -98,30 +121,67 @@ def main():
     #security_group_id = create_security_group('TP3_security_3', 'Security group for EC2 instances', vpc_id)
     security_group_id = 'sg-0f0a0ae8d68301cac'
 
-
     if not security_group_id:
         print("Failed to create security group. Exiting.")
         return
+
+    # Creating a security group for gate keeper
+    print("Creating a security group for gatekeeper...")
+    #security_group_id_gatekeeper = create_gatekeeper_security_group('Gatekeeper_Security_Group', 'Security group for the Gatekeeper instance', vpc_id)
+    security_group_id_gatekeeper = 'sg-0e85cae14839a77c4'
+    print(f"Created Security Group for gatekeeper ID: {security_group_id_gatekeeper}")
+
+    '''
+    # Replace 'vpc_id' and 'gatekeeper_security_group_id' with actual IDs
+    vpc_id = "vpc-0abcd1234efgh5678"  # Replace with your VPC ID
+    gatekeeper_security_group_id = "sg-0123456789abcdef0"  # Replace with Gatekeeper Security Group ID
+    trusted_host_sg_id = create_trusted_host_security_group(
+    'Trusted_Host_Security_Group', 
+    'Security group for the Trusted Host node', 
+    vpc_id, 
+    gatekeeper_security_group_id)
+    print(f"Created Security Group ID: {trusted_host_sg_id}")
+    '''
+
+    # Creating a security group for trusted host
+    #security_group_id_trustedhost = create_trusted_host_security_group('Trusted_Host_Security_Group', 'Security group for the Trusted Host node', vpc_id, security_group_id_gatekeeper)
+    security_group_id_trustedhost = 'sg-0af8854f032e26287'
+    print(f"Created Security Group ID for trustedhost: {security_group_id_trustedhost}")
+  
 
     # Create 3 t2.micros instances
     print("Creating 3 t2.micro instance...")
     instances = create_ec2_instance('t2.micro', 3, key_name, security_group_id,'InstanceTest', 'MySQLNodeinstance')
     
-    # Create 1 t2.large instance
+    # Create 1 t2.large instance for Proxy
     print("Creating 1 t2.large instance for Proxy...")
     proxy_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'Proxy')
+
+    # Create 1 t2.large instance for gatekeeper
+    print("Creating 1 t2.large instance for gatekeeper...")
+    # gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_gatekeeper,'Role', 'gatekeeper')
+    gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'gatekeeper')
+
+    # Create 1 t2.large instance for trusted_host
+    print("Creating 1 t2.large instance for trusted_host...")
+    # trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_trustedhost,'Role', 'trsusted_host')
+    trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'trsusted_host')
 
     # Assign roles to instances
     manager_ip = instances[0].public_ip_address
     worker_ips = [instances[1].public_ip_address, instances[2].public_ip_address]
     proxy_ip = proxy_instance[0].public_ip_address
+    gatekeeper_ip = gatekeeper_instance[0].public_ip_address
+    trusted_host_ip = trusted_instance[0].public_ip_address
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
     print(f"Proxy IP: {proxy_ip}")
+    print(f"Gatekeeper IP: {gatekeeper_ip}")
+    print(f"Trusted host IP: {trusted_host_ip}")
 
     # Concating all instances
-    all_instances = instances + proxy_instance
+    all_instances = instances + proxy_instance + gatekeeper_instance + trusted_instance
     instance_ids = [instance.id for instance in all_instances]
 
     # Installing in Instances
@@ -129,28 +189,36 @@ def main():
         
         public_ip = instance.public_ip_address
         if public_ip:
-            install_to_instance(public_ip)
+            #install_to_instance(public_ip)
+            i = 1
         else:
             print(f"No public IP found for instance {instance.id}")
 
-     # Deploy proxy_server.py on the Proxy instance with the correct IP addresses
 
+    
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
     print(f"Proxy IP: {proxy_ip}")
+    print(f"Gatekeeper IP: {gatekeeper_ip}")
+    print(f"Trusted host IP: {trusted_host_ip}")
 
     # Deply worker_fastapi.py on the worker instances
-    setup_worker(worker_ips[0])
-    setup_worker(worker_ips[1])
+    #setup_worker(worker_ips[0])
+    #setup_worker(worker_ips[1])
     setup_manager(manager_ip)
-
+    
     # Deploy proxy_server_fastapi_route.py on the the proxy instance
     setup_proxy(proxy_ip, manager_ip, worker_ips)
 
+    # Deploy gatekeeper and trusted_host on the related instances
+    setup_gatekeeper(gatekeeper_ip, trusted_host_ip)
+    setup_trusted_host(trusted_host_ip, proxy_ip)
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
     print(f"Proxy IP: {proxy_ip}")
+    print(f"Gatekeeper IP: {gatekeeper_ip}")
+    print(f"Trusted host IP: {trusted_host_ip}")
 
 
     #Terminate all_instances (if needed)
