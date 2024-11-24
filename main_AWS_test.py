@@ -174,11 +174,11 @@ def main():
     gatekeeper_ip = gatekeeper_instance[0].public_ip_address
     trusted_host_ip = trusted_instance[0].public_ip_address
     '''
-    manager_ip = '54.208.197.5'
-    worker_ips = ['34.239.111.89', '34.238.246.133']
-    proxy_ip = '98.81.165.95'
-    gatekeeper_ip = '3.84.240.207'
-    trusted_host_ip = '18.212.232.217'
+    manager_ip = '54.197.175.180'
+    worker_ips = ['54.157.227.150', '3.88.192.250']
+    proxy_ip = '34.234.87.148'
+    gatekeeper_ip = '54.147.178.106'
+    trusted_host_ip = '3.80.33.3'
 
 
     print(f"Manager IP: {manager_ip}")
@@ -201,7 +201,7 @@ def main():
         else:
             print(f"No public IP found for instance {instance.id}")
     '''
-    #install_to_instance(manager_ip)
+    install_to_instance(manager_ip)
 
     # Deply worker_fastapi.py on the worker instances
     #setup_worker(worker_ips[0])
@@ -212,7 +212,7 @@ def main():
     #setup_proxy(proxy_ip, manager_ip, worker_ips)
 
     # Deploy gatekeeper and trusted_host on the related instances
-    setup_gatekeeper(gatekeeper_ip, trusted_host_ip)
+    #setup_gatekeeper(gatekeeper_ip, trusted_host_ip)
     #setup_trusted_host(trusted_host_ip, proxy_ip)
 
     print(f"Manager IP: {manager_ip}")
