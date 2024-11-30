@@ -1,0 +1,6 @@
+*************************** 1. row ***************************
+             File: mysql-bin.000001
+         Position: 837
+     Binlog_Do_DB: 
+ Binlog_Ignore_DB: 
+Executed_Gtid_Set: 

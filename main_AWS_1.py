@@ -19,22 +19,48 @@ def install_to_instance(ip_address):
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
 
-def install_to_instance(ip_address,):
+def install_to_sql_cluster(manager_ip, worker1_ip, worker2_ip):
+    
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
+    try:
+        print(f"Starting Installing Mysql, Sakila, Sysbench for {manager_ip}")
+        subprocess.run([git_bash_path, "./Install_mysql_cluster4.sh", manager_ip, worker1_ip, worker2_ip], check=True)
+        print(f"Installed Mysql, Sakila, Sysbench correctly for {manager_ip}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during Installing MMysql, Sakila, Sysbench for {manager_ip}: {e.stderr}")
+
+
+
+def install_to_instanceM(ip_address):
     ip_parts = ip_address.split('.')
     git_bash_path = "C:/Program Files/Git/bin/bash.exe"
     try:
-        print(f"Starting Installing Mysql, Sakila, Sysbench for {ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_sakila_sysbench.sh", *ip_parts], check=True)
-        print(f"Installed Mysql, Sakila, Sysbench correctly for {ip_address}")
+        print(f"Starting Installing Mysql, Sakila, Sysbench for manager:{ip_address}")
+        subprocess.run([git_bash_path, "./Install_mysql_cluster_master3.sh", *ip_parts], check=True)
+        print(f"Installed Mysql, Sakila, Sysbench correctly for manager:{ip_address}")
     except subprocess.CalledProcessError as e:
-        print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
+        print(f"Error during Installing MMysql, Sakila, Sysbench for manager{ip_address}: {e.stderr}")
+
+
+def install_to_instanceW(ip_address, manager_ip):
+    ip_parts = ip_address.split('.')
+    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
+    try:
+        print(f"Starting Installing Mysql, Sakila, Sysbench for worker:{ip_address}")
+        subprocess.run([git_bash_path, "./Install_mysql_cluster_slave3.sh", *ip_parts, manager_ip], check=True)
+        print(f"Installed Mysql, Sakila, Sysbench correctly for worker:{ip_address}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during Installing MMysql, Sakila, Sysbench for worker{ip_address}: {e.stderr}")
+
+
+
 
 def install_to_manager_instance(ip_address):
     ip_parts = ip_address.split('.')
     git_bash_path = "C:/Program Files/Git/bin/bash.exe"
     try:
         print(f"Starting Installing Mysql, Sakila, Sysbench and replication for manager:{ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster_master.sh", *ip_parts], check=True)
+        subprocess.run([git_bash_path, "./Install_mysql_cluster_master1.sh", *ip_parts], check=True)
         print(f"Installed Mysql, Sakila, Sysbench and replication correctly for manager:{ip_address}")
         # Parse the JSON file for MASTER_LOG_FILE and MASTER_LOG_POS
         with open("./replication_data/replication_details.json", "r") as file:
@@ -51,10 +77,12 @@ def install_to_manager_instance(ip_address):
 
 def install_to_worker_instance(ip_address, manager_ip, master_log_file, master_log_pos):
     ip_parts = ip_address.split('.')
+    # Ensure each part of the IP is treated as a string
+    ip_parts = [str(part) for part in ip_parts]
     git_bash_path = "C:/Program Files/Git/bin/bash.exe"
     try:
         print(f"Starting Installing Mysql, Sakila, Sysbench and replication for worker:{ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster_slave.sh", *ip_parts, manager_ip, master_log_file, master_log_pos], check=True)
+        subprocess.run([git_bash_path, "./Install_mysql_cluster_slave1.sh", *ip_parts, manager_ip, master_log_file, master_log_pos], check=True)
         print(f"Installed Mysql, Sakila, Sysbench and replication correctly for worker:{ip_address}")
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
@@ -193,40 +221,49 @@ def main():
     
     # Create 1 t2.large instance for Proxy
     print("Creating 1 t2.large instance for Proxy...")
-    proxy_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'Proxy')
+    #proxy_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'Proxy')
 
     # Create 1 t2.large instance for gatekeeper
     print("Creating 1 t2.large instance for gatekeeper...")
     # gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_gatekeeper,'Role', 'gatekeeper')
-    gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'gatekeeper')
+    #gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'gatekeeper')
 
     # Create 1 t2.large instance for trusted_host
     print("Creating 1 t2.large instance for trusted_host...")
     # trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_trustedhost,'Role', 'trsusted_host')
-    trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'trsusted_host')
+    #trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'trsusted_host')
 
     # Assign roles to instances
     manager_ip = instances[0].public_ip_address
     worker_ips = [instances[1].public_ip_address, instances[2].public_ip_address]
-    proxy_ip = proxy_instance[0].public_ip_address
-    gatekeeper_ip = gatekeeper_instance[0].public_ip_address
-    trusted_host_ip = trusted_instance[0].public_ip_address
+    #proxy_ip = proxy_instance[0].public_ip_address
+    #gatekeeper_ip = gatekeeper_instance[0].public_ip_address
+    #trusted_host_ip = trusted_instance[0].public_ip_address
+
+    #manager_ip = '54.90.127.63'
+    #worker_ips = ['50.19.17.209', '54.197.77.239']
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
-    print(f"Proxy IP: {proxy_ip}")
-    print(f"Gatekeeper IP: {gatekeeper_ip}")
-    print(f"Trusted host IP: {trusted_host_ip}")
+    #print(f"Proxy IP: {proxy_ip}")
+    #print(f"Gatekeeper IP: {gatekeeper_ip}")
+    #print(f"Trusted host IP: {trusted_host_ip}")
 
     # Concating all instances
-    all_instances = instances + proxy_instance + gatekeeper_instance + trusted_instance
-    instance_ids = [instance.id for instance in all_instances]
+    #all_instances = instances  #+ proxy_instance + gatekeeper_instance + trusted_instance
+ 
+    #instance_ids = [instance.id for instance in all_instances]
 
     #install_to_manager_instance(manager_ip)
-    master_log_file, master_log_pos = install_to_manager_instance(manager_ip)
-    install_to_worker_instance(worker_ips[0], manager_ip, master_log_file, master_log_pos)
+    #master_log_file, master_log_pos = install_to_manager_instance(manager_ip)
 
+    #install_to_instanceM(manager_ip)
+    #install_to_instanceW(worker_ips[0], manager_ip)
+   
+    #master_log_file, master_log_pos = install_to_manager_instance(manager_ip)
+    #install_to_worker_instance(worker_ips[0], manager_ip, master_log_file, master_log_pos)
 
+    install_to_sql_cluster(manager_ip, worker_ips[0], worker_ips[1])
     # Installing in Instances
     for instance in instances:
         
@@ -256,6 +293,7 @@ def main():
     # Deploy gatekeeper and trusted_host on the related instances
     #setup_gatekeeper(gatekeeper_ip, trusted_host_ip)
     #setup_trusted_host(trusted_host_ip, proxy_ip)
+    
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
