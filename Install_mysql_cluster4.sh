@@ -72,6 +72,7 @@ MYSQL_SECURE
 
 
     # Install the Sakila database
+    echo "Downloading Sakila for ${INSTANCE_IP}"
     echo "Downloading and installing the Sakila database..."
     wget https://downloads.mysql.com/docs/sakila-db.tar.gz -P /tmp
     tar -xzf /tmp/sakila-db.tar.gz -C /tmp
@@ -82,6 +83,19 @@ SOURCE /tmp/sakila-db/sakila-data.sql;
 MYSQL_SAKILA
 
     echo "MySQL and Sakila database installation completed."
+
+    # Install sysbench for benchmarking
+    echo "Installing sysbench for benchmarking..."
+    sudo apt-get install sysbench -y
+
+    # Prepare the Sakila database for sysbench testing
+    echo "Preparing sysbench benchmark..."
+    sudo sysbench /usr/share/sysbench/oltp_read_only.lua --mysql-db=sakila --mysql-user=root --mysql-password=123456 prepare
+
+    # Run sysbench benchmark on Sakila database
+    echo "Running sysbench benchmark..."
+    sudo sysbench /usr/share/sysbench/oltp_read_only.lua --mysql-db=sakila --mysql-user=root --mysql-password=123456 run
+
 REMOTE_EOF
 
     if [ $? -eq 0 ]; then
@@ -90,6 +104,19 @@ REMOTE_EOF
         echo "MySQL installation failed on ${INSTANCE_IP}."
         exit 1
     fi
+    
+# Verify Sakila database installation
+echo "Verifying Sakila database installation..."
+ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no $REMOTE_USER@${INSTANCE_IP} << EOF
+    # Connect to MySQL and verify Sakila database installation
+    sudo mysql -u root -p'123456' <<EOF5
+USE sakila;
+SHOW FULL TABLES;
+EOF5
+EOF
+
+echo "MySQL with Sakila database has been successfully installed, configured, and benchmarked on ${INSTANCE_IP}."
+    
 }
 
 function configure_master() {
