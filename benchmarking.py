@@ -7,8 +7,8 @@ from datetime import datetime
 
 
 # Number of requests to send
-NUM_REQUESTS = 205
-CONCURRENT_REQUESTS = 50  # Max concurrent requests
+NUM_REQUESTS = 2
+CONCURRENT_REQUESTS = 2  # Max concurrent requests
 
 # Generate read request payloads
 def generate_read_requests():
@@ -100,7 +100,8 @@ if __name__ == "__main__":
     strategy = args.strategy
 
     print("Starting synchronous benchmark...")
-    benchmark_sync(gatekeeper_ip, query_type, strategy)
+    print("gatekeeper_ip:" + gatekeeper_ip + ", query_type: " + query_type + ", strategy: " + strategy)
+    #benchmark_sync(gatekeeper_ip, query_type, strategy)
 
     # Pause for 10 seconds before starting the asynchronous benchmark
     print("\nPausing for 10 seconds before starting asynchronous benchmark...")

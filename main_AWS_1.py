@@ -24,68 +24,11 @@ def install_to_sql_cluster(manager_ip, worker1_ip, worker2_ip):
     git_bash_path = "C:/Program Files/Git/bin/bash.exe"
     try:
         print(f"Starting Installing Mysql, Sakila, Sysbench for {manager_ip}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster4.sh", manager_ip, worker1_ip, worker2_ip], check=True)
+        subprocess.run([git_bash_path, "./Install_mysql_cluster.sh", manager_ip, worker1_ip, worker2_ip], check=True)
         print(f"Installed Mysql, Sakila, Sysbench correctly for {manager_ip}")
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing MMysql, Sakila, Sysbench for {manager_ip}: {e.stderr}")
 
-
-
-def install_to_instanceM(ip_address):
-    ip_parts = ip_address.split('.')
-    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
-    try:
-        print(f"Starting Installing Mysql, Sakila, Sysbench for manager:{ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster_master3.sh", *ip_parts], check=True)
-        print(f"Installed Mysql, Sakila, Sysbench correctly for manager:{ip_address}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during Installing MMysql, Sakila, Sysbench for manager{ip_address}: {e.stderr}")
-
-
-def install_to_instanceW(ip_address, manager_ip):
-    ip_parts = ip_address.split('.')
-    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
-    try:
-        print(f"Starting Installing Mysql, Sakila, Sysbench for worker:{ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster_slave3.sh", *ip_parts, manager_ip], check=True)
-        print(f"Installed Mysql, Sakila, Sysbench correctly for worker:{ip_address}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during Installing MMysql, Sakila, Sysbench for worker{ip_address}: {e.stderr}")
-
-
-
-
-def install_to_manager_instance(ip_address):
-    ip_parts = ip_address.split('.')
-    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
-    try:
-        print(f"Starting Installing Mysql, Sakila, Sysbench and replication for manager:{ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster_master1.sh", *ip_parts], check=True)
-        print(f"Installed Mysql, Sakila, Sysbench and replication correctly for manager:{ip_address}")
-        # Parse the JSON file for MASTER_LOG_FILE and MASTER_LOG_POS
-        with open("./replication_data/replication_details.json", "r") as file:
-            replication_details = json.load(file)
-        
-        master_log_file = str(replication_details["MASTER_LOG_FILE"])
-        master_log_pos = str(replication_details["MASTER_LOG_POS"])
-        
-        print(f"Replication details retrieved:\nMASTER_LOG_FILE: {master_log_file}\nMASTER_LOG_POS: {master_log_pos}")
-        return master_log_file, master_log_pos
-
-    except subprocess.CalledProcessError as e:
-        print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
-
-def install_to_worker_instance(ip_address, manager_ip, master_log_file, master_log_pos):
-    ip_parts = ip_address.split('.')
-    # Ensure each part of the IP is treated as a string
-    ip_parts = [str(part) for part in ip_parts]
-    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
-    try:
-        print(f"Starting Installing Mysql, Sakila, Sysbench and replication for worker:{ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster_slave1.sh", *ip_parts, manager_ip, master_log_file, master_log_pos], check=True)
-        print(f"Installed Mysql, Sakila, Sysbench and replication correctly for worker:{ip_address}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
 
 def setup_worker(ip_address):
     ip_parts = ip_address.split('.')

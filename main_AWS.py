@@ -9,15 +9,6 @@ import subprocess
 
 KEY_PATH="TP3_pem_3.pem" 
 
-def install_to_instance(ip_address):
-    ip_parts = ip_address.split('.')
-    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
-    try:
-        print(f"Starting Installing Mysql, Sakila, Sysbench for {ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_sakila_sysbench.sh", *ip_parts], check=True)
-        print(f"Installed Mysql, Sakila, Sysbench correctly for {ip_address}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
 
 def install_to_instance(ip_address,):
     ip_parts = ip_address.split('.')
@@ -29,35 +20,16 @@ def install_to_instance(ip_address,):
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
 
-def install_to_manager_instance(ip_address):
-    ip_parts = ip_address.split('.')
+def install_to_sql_cluster(manager_ip, worker1_ip, worker2_ip):
+    
     git_bash_path = "C:/Program Files/Git/bin/bash.exe"
     try:
-        print(f"Starting Installing Mysql, Sakila, Sysbench and replication for manager:{ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster_master.sh", *ip_parts], check=True)
-        print(f"Installed Mysql, Sakila, Sysbench and replication correctly for manager:{ip_address}")
-        # Parse the JSON file for MASTER_LOG_FILE and MASTER_LOG_POS
-        with open("./replication_data/replication_details.json", "r") as file:
-            replication_details = json.load(file)
-        
-        master_log_file = str(replication_details["MASTER_LOG_FILE"])
-        master_log_pos = str(replication_details["MASTER_LOG_POS"])
-        
-        print(f"Replication details retrieved:\nMASTER_LOG_FILE: {master_log_file}\nMASTER_LOG_POS: {master_log_pos}")
-        return master_log_file, master_log_pos
-
+        print(f"Starting Installing Mysql, Sakila, Sysbench for {manager_ip}")
+        subprocess.run([git_bash_path, "./Install_mysql_cluster.sh", manager_ip, worker1_ip, worker2_ip], check=True)
+        print(f"Installed Mysql, Sakila, Sysbench correctly for {manager_ip}")
     except subprocess.CalledProcessError as e:
-        print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
+        print(f"Error during Installing MMysql, Sakila, Sysbench for {manager_ip}: {e.stderr}")
 
-def install_to_worker_instance(ip_address, manager_ip, master_log_file, master_log_pos):
-    ip_parts = ip_address.split('.')
-    git_bash_path = "C:/Program Files/Git/bin/bash.exe"
-    try:
-        print(f"Starting Installing Mysql, Sakila, Sysbench and replication for worker:{ip_address}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster_slave.sh", *ip_parts, manager_ip, master_log_file, master_log_pos], check=True)
-        print(f"Installed Mysql, Sakila, Sysbench and replication correctly for worker:{ip_address}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during Installing MMysql, Sakila, Sysbench for {ip_address}: {e.stderr}")
 
 def setup_worker(ip_address):
     ip_parts = ip_address.split('.')
@@ -222,10 +194,6 @@ def main():
     all_instances = instances + proxy_instance + gatekeeper_instance + trusted_instance
     instance_ids = [instance.id for instance in all_instances]
 
-    #install_to_manager_instance(manager_ip)
-    master_log_file, master_log_pos = install_to_manager_instance(manager_ip)
-    install_to_worker_instance(worker_ips[0], manager_ip, master_log_file, master_log_pos)
-
 
     # Installing in Instances
     for instance in instances:
@@ -237,6 +205,7 @@ def main():
         else:
             print(f"No public IP found for instance {instance.id}")
 
+    install_to_sql_cluster(manager_ip, worker_ips[0], worker_ips[1])
 
     
     print(f"Manager IP: {manager_ip}")
@@ -246,16 +215,16 @@ def main():
     print(f"Trusted host IP: {trusted_host_ip}")
 
     # Deply worker_fastapi.py on the worker instances
-    #setup_worker(worker_ips[0])
-    #setup_worker(worker_ips[1])
-    #setup_manager(manager_ip)
+    setup_worker(worker_ips[0])
+    setup_worker(worker_ips[1])
+    setup_manager(manager_ip)
     
     # Deploy proxy_server_fastapi_route.py on the the proxy instance
-    #setup_proxy(proxy_ip, manager_ip, worker_ips)
+    setup_proxy(proxy_ip, manager_ip, worker_ips)
 
     # Deploy gatekeeper and trusted_host on the related instances
-    #setup_gatekeeper(gatekeeper_ip, trusted_host_ip)
-    #setup_trusted_host(trusted_host_ip, proxy_ip)
+    setup_gatekeeper(gatekeeper_ip, trusted_host_ip)
+    setup_trusted_host(trusted_host_ip, proxy_ip)
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
