@@ -130,7 +130,7 @@ def main():
     vpc_id = creds['vpc_id']
     subnets = creds['subnets']
 
-    print("Creating a security group...")
+    #print("Creating a security group...")
     #security_group_id = create_security_group('TP3_security_3', 'Security group for EC2 instances', vpc_id)
     security_group_id = 'sg-0f0a0ae8d68301cac'
 
@@ -142,9 +142,15 @@ def main():
     #security_group_id_sql_instances = create_sql_instances_security_group('TP3_sql_instances_security', 'Security group for EC2 instances', vpc_id)
     security_group_id_sql_instances = 'sg-09f852f5b957d1100'
 
-    if not security_group_id:
+    if not security_group_id_sql_instances:
         print("Failed to create security group. Exiting.")
         return
+
+    # Creating a security group for proxy
+    print("Creating a security group for proxy...")
+    #security_group_id_proxy = create_proxy_security_group('proxy_Security_Group', 'Security group for the proxy instance', vpc_id)
+    security_group_id_proxy = 'sg-0e85cae14839a77c4'
+    print(f"Created Security Group for proxy ID: {security_group_id_proxy}")
 
     # Creating a security group for gate keeper
     print("Creating a security group for gatekeeper...")
@@ -154,6 +160,7 @@ def main():
 
 
     # Creating a security group for trusted host
+    print("Creating a security group for trustedhost...")
     #security_group_id_trustedhost = create_trusted_host_security_group('Trusted_Host_Security_Group', 'Security group for the Trusted Host node', vpc_id, security_group_id_gatekeeper)
     security_group_id_trustedhost = 'sg-0af8854f032e26287'
     print(f"Created Security Group ID for trustedhost: {security_group_id_trustedhost}")

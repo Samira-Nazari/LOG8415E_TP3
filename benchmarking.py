@@ -7,8 +7,8 @@ from datetime import datetime
 
 
 # Number of requests to send
-NUM_REQUESTS = 2
-CONCURRENT_REQUESTS = 2  # Max concurrent requests
+NUM_REQUESTS = 5
+CONCURRENT_REQUESTS = 5  # Max concurrent requests
 
 # Generate read request payloads
 def generate_read_requests():
@@ -17,16 +17,6 @@ def generate_read_requests():
         for i in range(1, NUM_REQUESTS + 1)
     ]
     return queries
-
-'''
-# Generate write request payloads
-def generate_write_requests():
-    queries = [
-        {"query": f"INSERT INTO actor (first_name, last_name, last_update) VALUES (\"Sam{i}\", \"Nzr{i}\", \"2024-11-21 10:58:11\"}
-        for i in range(1, NUM_REQUESTS + 1)
-    ]
-    return queries
-'''
 
 # Generate write request payloads
 def generate_write_requests():
@@ -63,6 +53,7 @@ async def send_request(session, url, query, semaphore):
     async with semaphore:  # Limit the number of concurrent requests
         try:
             async with session.post(url, json=query) as response:
+                print(f"query: {query} ")
                 result = await response.text()
                 print(f"Response: {response.status} - {result}")
         except Exception as e:
@@ -99,13 +90,13 @@ if __name__ == "__main__":
     query_type = args.query_type
     strategy = args.strategy
 
-    print("Starting synchronous benchmark...")
-    print("gatekeeper_ip:" + gatekeeper_ip + ", query_type: " + query_type + ", strategy: " + strategy)
+    #print("Starting synchronous benchmark...")
+    #print("gatekeeper_ip:" + gatekeeper_ip + ", query_type: " + query_type + ", strategy: " + strategy)
     #benchmark_sync(gatekeeper_ip, query_type, strategy)
 
-    # Pause for 10 seconds before starting the asynchronous benchmark
-    print("\nPausing for 10 seconds before starting asynchronous benchmark...")
-    time.sleep(10)
+    # Pause for 5 seconds before starting the asynchronous benchmark
+    print("\nPausing for 5 seconds before starting asynchronous benchmark...")
+    time.sleep(5)
 
     print("\nStarting asynchronous benchmark...")
     asyncio.run(benchmark_async(gatekeeper_ip, query_type, strategy))

@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 # Initialize EC2 client
 ec2_client = boto3.client('ec2', region_name='us-east-1')
 
-def create_trusted_host_security_group(group_name, description, vpc_id, gatekeeper_security_group_id):
+def create_trusted_host_security_group(group_name, description, vpc_id, gatekeeper_security_group_id, gatekeeper_private_ip):
     """
     Creates a security group for the Trusted Host Node with limited access.
     
@@ -31,39 +31,48 @@ def create_trusted_host_security_group(group_name, description, vpc_id, gatekeep
         ec2_client.authorize_security_group_ingress(
             GroupId=security_group_id,
             IpPermissions=[
+                # Allow HTTP traffic from Gatekeeper
                 {
                     'IpProtocol': 'tcp',
-                    'FromPort': 8000,  # FastAPI Application Port
-                    'ToPort': 8000,
-                    'UserIdGroupPairs': [{'GroupId': gatekeeper_security_group_id}]
+                    'FromPort': 80,
+                    'ToPort': 80,
+                    'IpRanges': [{'CidrIp': f"{gatekeeper_private_ip}/32"}]
                 },
+                # Allow SSH access temporarily (optional)
                 {
                     'IpProtocol': 'tcp',
-                    'FromPort': 22,  # SSH
+                    'FromPort': 22,
                     'ToPort': 22,
-                    #'IpRanges': [{'CidrIp': '70.53.177.126/32'}]  # Replace 'YOUR_IP/32' with your IP
-                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Open to all IPs 
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Replace with your IP range for security
+                },
+                    # Allow traffic from Gatekeeper to FastAPI on Trusted Host (port 8000)
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 8000,
+                    'ToPort': 8000,
+                    'IpRanges': [{'CidrIp': f"{gatekeeper_private_ip}/32"}],  # Restrict to Gatekeeper IP
                 },
             ]
         )
         print(f"Ingress rules added to security group {group_name}.")
 
-        '''
+        
         # Add outbound rules (Allow all outbound for internal communication)
         ec2_client.authorize_security_group_egress(
             GroupId=security_group_id,
             IpPermissions=[
+                # Allow HTTP traffic to the Proxy
                 {
-                    'IpProtocol': '-1',  # All protocols
-                    'FromPort': -1,
-                    'ToPort': -1,
-                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Open outbound traffic
+                    'IpProtocol': 'tcp',
+                    'FromPort': 80,
+                    'ToPort': 80,
+                    'IpRanges': [{'CidrIp': f"{proxy_private_ip}/32"}]
                 }
             ]
         )
         print(f"Egress rules added to security group {group_name}.")
 
-        '''    
+            
         return security_group_id
 
     except ClientError as e:

@@ -153,39 +153,8 @@ EOF
     fi
 
     echo "Master Log File: ${MASTER_LOG_FILE}, Position: ${MASTER_LOG_POS}"
-        # # MySQL commands to configure replication
-        # sudo mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF2
-        # # Enable binary logging and set server ID
-        # SET GLOBAL server_id = 1;
         
-        # # Acquire a read lock, get master status, and then release the lock
-        # FLUSH TABLES WITH READ LOCK;
-        # SHOW MASTER STATUS;
-        # UNLOCK TABLES;
 
-        # DROP USER IF EXISTS '${REPLICATION_USER}'@'%';
-        # CREATE USER '${REPLICATION_USER}'@'%' IDENTIFIED BY '${REPLICATION_PASSWORD}';
-        # GRANT REPLICATION SLAVE ON *.* TO '${REPLICATION_USER}'@'%';
-        # FLUSH PRIVILEGES;
-
-        # SHOW GRANTS FOR '${REPLICATION_USER}'@'%';
-# EOF2
-
-#         # Shell commands to enable binary log and restart MySQL service
-#         sudo sed -i '/\[mysqld\]/a server-id=1\nlog_bin=mysql-bin' /etc/mysql/mysql.conf.d/mysqld.cnf
-#         sudo systemctl restart mysql
-
-#         sudo mysql -u root -p'123456' -e "SHOW MASTER STATUS\G" > /tmp/master_status.txt
-
-# EOF
-#     # Retrieve replication details
-#     scp -i "$KEY_PATH" $REMOTE_USER@${MASTER_IP}:/tmp/master_status.txt ./master_status.txt
-#     MASTER_LOG_FILE=$(grep "File:" master_status.txt | awk '{print $2}')
-#     MASTER_LOG_POS=$(grep "Position:" master_status.txt | awk '{print $2}')
-#     echo "Master Log File: ${MASTER_LOG_FILE}, Position: ${MASTER_LOG_POS}"
-
-#     # Return the master's log file and position
-#     echo "$MASTER_LOG_FILE $MASTER_LOG_POS"
 }
 
 function configure_slave() {
@@ -219,51 +188,6 @@ EOF
     echo "Slave configuration on ${SLAVE_IP} completed."
 }
 
-
-
-# function configure_slave() {
-#     local SLAVE_IP=$1
-#     local SERVER_ID=$2
-#     local MASTER_LOG_FILE=$3
-#     local MASTER_LOG_POS=$4
-
-#     echo "Start creating Slave for IP ${SLAVE_IP}" 
-#     echo "Master Log File: ${MASTER_LOG_FILE}"
-#     echo "Master Log Position: ${MASTER_LOG_POS}"
-
-#     # Wait for SSH to be ready on the slave instance
-#     wait_for_ssh "$SLAVE_IP"
-  
-#     echo "Configuring Slave instance at ${SLAVE_IP} with server ID ${SERVER_ID}..."
-
-#     ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no $REMOTE_USER@$SLAVE_IP << EOF
-
-#         # Set server ID and configure slave
-#         sudo mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF2
-#         SET GLOBAL server_id = ${SERVER_ID};
-#         CHANGE MASTER TO 
-#             MASTER_HOST='${MASTER_IP}',
-#             MASTER_USER='${REPLICATION_USER}',
-#             MASTER_PASSWORD='${REPLICATION_PASSWORD}',
-#             MASTER_LOG_FILE='${MASTER_LOG_FILE}',
-#             MASTER_LOG_POS=${MASTER_LOG_POS};
-#         START SLAVE;
-#         SHOW SLAVE STATUS\G;
-#     EOF2
-
-#         # Update configuration for replication
-#         # sudo sed -i '/\[mysqld\]/a server-id=${SERVER_ID}' /etc/mysql/mysql.conf.d/mysqld.cnf
-
-#         cat <<EOF1 > /etc/mysql/mysql.conf.d/mysqld.cnf
-#         [mysqld]
-#         server-id=${SERVER_ID}
-#         relay-log=mysql-relay-bin
-#         log-bin=mysql-bin
-# EOF1
-#         # Restart MySQL to apply changes
-#         sudo systemctl restart mysql
-# EOF
-# }
 
 # Install MySQL on all instances
 install_mysql "$MASTER_IP"

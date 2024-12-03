@@ -4,9 +4,10 @@ import asyncio
 import aiohttp
 import argparse
 from datetime import datetime
+import json  # Import the json module
 
 # Number of requests to send
-NUM_REQUESTS = 100
+NUM_REQUESTS = 1000
 CONCURRENT_REQUESTS = 50  # Max concurrent requests
 
 # Log file name
@@ -62,6 +63,12 @@ async def send_request(session, url, query, semaphore, file):
         try:
             async with session.post(url, json=query) as response:
                 result = await response.text()
+
+                # Convert query to a JSON string
+                log_request = json.dumps(query, indent=4)
+                print(log_request)
+                file.write(log_request + "\n")  # Add newline for readability
+                
                 log_message = f"Response: {response.status} - {result}"
                 print(log_message)
                 file.write(log_message + "\n")
@@ -106,17 +113,18 @@ if __name__ == "__main__":
 
     with open(LOG_FILE, "a") as file:
         # Write start message for synchronous benchmark
+        '''
         sync_message = "Starting synchronous benchmark..."
         print(sync_message)
         file.write(sync_message + "\n")
-
         benchmark_sync(gatekeeper_ip, query_type, strategy)
+        '''  
 
         # Pause before asynchronous benchmark
-        pause_message = "\nPausing for 10 seconds before starting asynchronous benchmark..."
+        pause_message = "\nPausing for 5 seconds before starting asynchronous benchmark..."
         print(pause_message)
         file.write(pause_message + "\n")
-        time.sleep(10)
+        time.sleep(5)
 
         # Write start message for asynchronous benchmark
         async_message = "\nStarting asynchronous benchmark..."

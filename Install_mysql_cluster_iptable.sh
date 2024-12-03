@@ -17,6 +17,8 @@ REPLICATION_PASSWORD="repl_pass"
 
 MASTER_LOG_FILE=""
 MASTER_LOG_POS=""
+PROXY_IP=$4
+
 
 # Retry loop to wait for SSH availability
 function attempt_ssh() {
@@ -153,39 +155,8 @@ EOF
     fi
 
     echo "Master Log File: ${MASTER_LOG_FILE}, Position: ${MASTER_LOG_POS}"
-        # # MySQL commands to configure replication
-        # sudo mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF2
-        # # Enable binary logging and set server ID
-        # SET GLOBAL server_id = 1;
         
-        # # Acquire a read lock, get master status, and then release the lock
-        # FLUSH TABLES WITH READ LOCK;
-        # SHOW MASTER STATUS;
-        # UNLOCK TABLES;
 
-        # DROP USER IF EXISTS '${REPLICATION_USER}'@'%';
-        # CREATE USER '${REPLICATION_USER}'@'%' IDENTIFIED BY '${REPLICATION_PASSWORD}';
-        # GRANT REPLICATION SLAVE ON *.* TO '${REPLICATION_USER}'@'%';
-        # FLUSH PRIVILEGES;
-
-        # SHOW GRANTS FOR '${REPLICATION_USER}'@'%';
-# EOF2
-
-#         # Shell commands to enable binary log and restart MySQL service
-#         sudo sed -i '/\[mysqld\]/a server-id=1\nlog_bin=mysql-bin' /etc/mysql/mysql.conf.d/mysqld.cnf
-#         sudo systemctl restart mysql
-
-#         sudo mysql -u root -p'123456' -e "SHOW MASTER STATUS\G" > /tmp/master_status.txt
-
-# EOF
-#     # Retrieve replication details
-#     scp -i "$KEY_PATH" $REMOTE_USER@${MASTER_IP}:/tmp/master_status.txt ./master_status.txt
-#     MASTER_LOG_FILE=$(grep "File:" master_status.txt | awk '{print $2}')
-#     MASTER_LOG_POS=$(grep "Position:" master_status.txt | awk '{print $2}')
-#     echo "Master Log File: ${MASTER_LOG_FILE}, Position: ${MASTER_LOG_POS}"
-
-#     # Return the master's log file and position
-#     echo "$MASTER_LOG_FILE $MASTER_LOG_POS"
 }
 
 function configure_slave() {
@@ -219,56 +190,74 @@ EOF
     echo "Slave configuration on ${SLAVE_IP} completed."
 }
 
+function configure_iptables() {
+    local INSTANCE_IP=$1
+    local ROLE=$2  # "manager" or "worker"
+    local PROXY_IP=$3
 
+    wait_for_ssh "$NSTANCE_IP"
+    echo "Configuring iptables on ${INSTANCE_IP} (${ROLE})..."
+    ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no $REMOTE_USER@$INSTANCE_IP << EOF
+        # Flush existing rules
+        sudo iptables -F
+        sudo iptables -X
 
-# function configure_slave() {
-#     local SLAVE_IP=$1
-#     local SERVER_ID=$2
-#     local MASTER_LOG_FILE=$3
-#     local MASTER_LOG_POS=$4
+        # Allow SSH traffic
+        sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
 
-#     echo "Start creating Slave for IP ${SLAVE_IP}" 
-#     echo "Master Log File: ${MASTER_LOG_FILE}"
-#     echo "Master Log Position: ${MASTER_LOG_POS}"
+        # Default policies: Drop everything unless explicitly allowed
+        sudo iptables -P INPUT DROP
+        sudo iptables -P OUTPUT DROP
+        sudo iptables -P FORWARD DROP
 
-#     # Wait for SSH to be ready on the slave instance
-#     wait_for_ssh "$SLAVE_IP"
-  
-#     echo "Configuring Slave instance at ${SLAVE_IP} with server ID ${SERVER_ID}..."
+        # Allow loopback traffic
+        sudo iptables -A INPUT -i lo -j ACCEPT
+        sudo iptables -A OUTPUT -o lo -j ACCEPT
 
-#     ssh -i "$KEY_PATH" -o StrictHostKeyChecking=no $REMOTE_USER@$SLAVE_IP << EOF
+        # Allow established and related connections
+        sudo iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
+        sudo iptables -A OUTPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT
 
-#         # Set server ID and configure slave
-#         sudo mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF2
-#         SET GLOBAL server_id = ${SERVER_ID};
-#         CHANGE MASTER TO 
-#             MASTER_HOST='${MASTER_IP}',
-#             MASTER_USER='${REPLICATION_USER}',
-#             MASTER_PASSWORD='${REPLICATION_PASSWORD}',
-#             MASTER_LOG_FILE='${MASTER_LOG_FILE}',
-#             MASTER_LOG_POS=${MASTER_LOG_POS};
-#         START SLAVE;
-#         SHOW SLAVE STATUS\G;
-#     EOF2
+        # Role-specific rules
+        if [[ "$ROLE" == "manager" ]]; then
+            # Allow incoming MySQL traffic from Proxy and Workers
+            sudo iptables -A INPUT -p tcp -s ${PROXY_IP} --dport 3306 -j ACCEPT
+            sudo iptables -A INPUT -p tcp -s ${WORKER1_IP} --dport 3306 -j ACCEPT
+            sudo iptables -A INPUT -p tcp -s ${WORKER2_IP} --dport 3306 -j ACCEPT
 
-#         # Update configuration for replication
-#         # sudo sed -i '/\[mysqld\]/a server-id=${SERVER_ID}' /etc/mysql/mysql.conf.d/mysqld.cnf
+            # Allow outgoing replication traffic to Workers
+            sudo iptables -A OUTPUT -p tcp -d ${WORKER1_IP} --dport 3306 -j ACCEPT
+            sudo iptables -A OUTPUT -p tcp -d ${WORKER2_IP} --dport 3306 -j ACCEPT
+        elif [[ "$ROLE" == "worker" ]]; then
+            # Allow incoming MySQL traffic from Proxy and Manager
+            sudo iptables -A INPUT -p tcp -s ${PROXY_IP} --dport 3306 -j ACCEPT
+            sudo iptables -A INPUT -p tcp -s ${MASTER_IP} --dport 3306 -j ACCEPT
 
-#         cat <<EOF1 > /etc/mysql/mysql.conf.d/mysqld.cnf
-#         [mysqld]
-#         server-id=${SERVER_ID}
-#         relay-log=mysql-relay-bin
-#         log-bin=mysql-bin
-# EOF1
-#         # Restart MySQL to apply changes
-#         sudo systemctl restart mysql
-# EOF
-# }
+            # Allow outgoing replication traffic to Manager
+            sudo iptables -A OUTPUT -p tcp -d ${MASTER_IP} --dport 3306 -j ACCEPT
+        fi
+
+        # Allow SSH for remote access
+        sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+        sudo iptables -A OUTPUT -p tcp --sport 22 -j ACCEPT
+
+        # Save iptables rules to persist after reboot
+        sudo apt install iptables-persistent -y
+        sudo netfilter-persistent save
+        sudo netfilter-persistent reload
+
+        echo "iptables configured for ${INSTANCE_IP} (${ROLE})."
+EOF
+}
+
 
 # Install MySQL on all instances
 install_mysql "$MASTER_IP"
+configure_iptables "$MASTER_IP" "manager" "$PROXY_IP"
 install_mysql "$WORKER1_IP"
+configure_iptables "$WORKER1_IP" "worker" "$PROXY_IP"
 install_mysql "$WORKER2_IP"
+configure_iptables "$WORKER2_IP" "worker" "$PROXY_IP"
 
 # Configure master and slaves
 configure_master
