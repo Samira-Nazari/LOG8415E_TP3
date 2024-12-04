@@ -78,6 +78,14 @@ ssh -i "$KEY_PATH" -o "StrictHostKeyChecking=no" $REMOTE_USER@"$TRUSTED_HOST_IP"
 
     # Configure iptables rules for security
     echo "Configuring iptables rules..."
+
+    # Allow SSH traffic
+    sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+
+    # Allow loopback traffic
+    sudo iptables -A INPUT -i lo -j ACCEPT
+    sudo iptables -A OUTPUT -o lo -j ACCEPT
+
     sudo iptables -F # Flush existing rules
     sudo iptables -A INPUT -i lo -j ACCEPT # Allow loopback traffic
     sudo iptables -A INPUT -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT # Allow established connections

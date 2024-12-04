@@ -4,7 +4,7 @@ from botocore.exceptions import ClientError
 # Initialize EC2 client
 ec2_client = boto3.client('ec2', region_name='us-east-1')
 
-def create_trusted_host_security_group(group_name, description, vpc_id, gatekeeper_security_group_id, gatekeeper_private_ip):
+def create_trusted_host_security_group(group_name, description, vpc_id, gatekeeper_security_group_id):
     """
     Creates a security group for the Trusted Host Node with limited access.
     
@@ -30,28 +30,44 @@ def create_trusted_host_security_group(group_name, description, vpc_id, gatekeep
         # Add inbound rules (Allow access from Gatekeeper)
         ec2_client.authorize_security_group_ingress(
             GroupId=security_group_id,
-            IpPermissions=[
-                # Allow HTTP traffic from Gatekeeper
-                {
-                    'IpProtocol': 'tcp',
-                    'FromPort': 80,
-                    'ToPort': 80,
-                    'IpRanges': [{'CidrIp': f"{gatekeeper_private_ip}/32"}]
-                },
+            IpPermissions=[             
                 # Allow SSH access temporarily (optional)
                 {
                     'IpProtocol': 'tcp',
                     'FromPort': 22,
                     'ToPort': 22,
                     'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Replace with your IP range for security
+                },   
+                {   
+                    'IpProtocol': 'icmp', 
+                    'FromPort': -1, 
+                    'ToPort': -1, 
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
                 },
-                    # Allow traffic from Gatekeeper to FastAPI on Trusted Host (port 8000)
                 {
                     'IpProtocol': 'tcp',
-                    'FromPort': 8000,
+                    'FromPort': 8000,  # FastAPI Application Port
                     'ToPort': 8000,
-                    'IpRanges': [{'CidrIp': f"{gatekeeper_private_ip}/32"}],  # Restrict to Gatekeeper IP
+                    'UserIdGroupPairs': [{'GroupId': gatekeeper_security_group_id}]
                 },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 80,  
+                    'ToPort': 80,
+                    'UserIdGroupPairs': [{'GroupId': gatekeeper_security_group_id}]
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 443,  
+                    'ToPort': 443,
+                    'UserIdGroupPairs': [{'GroupId': gatekeeper_security_group_id}]
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 1024,
+                    'ToPort': 65535,
+                    'UserIdGroupPairs': [{'GroupId': gatekeeper_security_group_id}]
+                }  
             ]
         )
         print(f"Ingress rules added to security group {group_name}.")
@@ -64,9 +80,16 @@ def create_trusted_host_security_group(group_name, description, vpc_id, gatekeep
                 # Allow HTTP traffic to the Proxy
                 {
                     'IpProtocol': 'tcp',
-                    'FromPort': 80,
+                    'FromPort': 80,  
                     'ToPort': 80,
-                    'IpRanges': [{'CidrIp': f"{proxy_private_ip}/32"}]
+                    'UserIdGroupPairs': [{'GroupId': proxy_security_group_id}]
+                    # 'IpRanges': [{'CidrIp': f"{proxy_private_ip}/32"}]
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 8000,  # FastAPI Application Port
+                    'ToPort': 8000,
+                    'UserIdGroupPairs': [{'GroupId': proxy_security_group_id}]
                 }
             ]
         )

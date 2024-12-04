@@ -22,7 +22,7 @@ def generate_read_requests():
 def generate_write_requests():
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     queries = [
-        {"query": f"INSERT INTO actor (first_name, last_name, last_update) VALUES (\"Sam{i}\", \"Nzr{i}\", \"{current_time}\")"}
+        {"query": f"INSERT INTO actor (first_name, last_name, last_update) VALUES (\"SmrA{i}\", \"Nzr{i}\", \"{current_time}\")"}
         for i in range(1, NUM_REQUESTS + 1)
     ]
     return queries

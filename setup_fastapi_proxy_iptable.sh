@@ -110,11 +110,13 @@ ssh -i "$KEY_PATH" -o "StrictHostKeyChecking=no" $REMOTE_USER@"$PROXY_IP" <<EOF
         sudo iptables -A INPUT -p tcp -s \$WORKER_IP --dport 8000 -j ACCEPT
     done
 
+   
     # Allow outgoing traffic to Manager and Worker nodes on port 3306 (MySQL)
-    sudo iptables -A OUTPUT -p tcp -d ${MANAGER_IP} --dport 3306 -j ACCEPT
-    for WORKER_IP in "\${WORKER_ARRAY[@]}"; do
-        sudo iptables -A OUTPUT -p tcp -d \$WORKER_IP --dport 3306 -j ACCEPT
-    done
+    #sudo iptables -A OUTPUT -p tcp -d ${MANAGER_IP} --dport 3306 -j ACCEPT
+    #for WORKER_IP in "\${WORKER_ARRAY[@]}"; do
+    #    sudo iptables -A OUTPUT -p tcp -d \$WORKER_IP --dport 3306 -j ACCEPT
+    #done
+    
 
     # Allow SSH traffic for administrative purposes
     sudo iptables -A INPUT -p tcp --dport 22 -j ACCEPT

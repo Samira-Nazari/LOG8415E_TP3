@@ -1,7 +1,9 @@
 from create_AWS_security_groups import create_security_group
-from create_AWS_security_groups_sql_instances import create_sql_instances_security_group
 from create_AWS_security_groups_gatekeeper import create_gatekeeper_security_group
 from create_AWS_security_groups_trustedhost import create_trusted_host_security_group
+from create_AWS_security_groups_proxy import create_proxy_security_group
+from create_AWS_security_groups_sql_instances import create_sql_instances_security_group
+
 from create_AWS_EC2_Instances import create_ec2_instance
 from terminate import terminate_instances
 import json
@@ -25,7 +27,7 @@ def install_to_sql_cluster(manager_ip, worker1_ip, worker2_ip):
     git_bash_path = "C:/Program Files/Git/bin/bash.exe"
     try:
         print(f"Starting Installing Mysql, Sakila, Sysbench for {manager_ip}")
-        subprocess.run([git_bash_path, "./Install_mysql_cluster.sh", manager_ip, worker1_ip, worker2_ip], check=True)
+        subprocess.run([git_bash_path, "./Install_mysql_cluster_iptable.sh", manager_ip, worker1_ip, worker2_ip], check=True)
         print(f"Installed Mysql, Sakila, Sysbench correctly for {manager_ip}")
     except subprocess.CalledProcessError as e:
         print(f"Error during Installing MMysql, Sakila, Sysbench for {manager_ip}: {e.stderr}")
@@ -58,7 +60,7 @@ def setup_proxy(proxy_ip, manager_ip, worker_ips):
     try:
         print(f"Starting to set up FastAPI proxy for {proxy_ip}")
         # Pass the three parameters to the bash script
-        subprocess.run([git_bash_path, "./setup_fastapi_proxy.sh", proxy_ip, manager_ip, worker_ips_str], check=True)
+        subprocess.run([git_bash_path, "./setup_fastapi_proxy_iptable.sh", proxy_ip, manager_ip, worker_ips_str], check=True)
         print(f"FastAPI proxy setup completed for {proxy_ip}")
     except subprocess.CalledProcessError as e:
         #print(f"Error during FastAPI proxy setup for {proxy_ip}: {e.stderr}")
@@ -69,7 +71,7 @@ def setup_gatekeeper(gatekeeper_ip, trusted_host_ip):
     try:
         print(f"Starting to set up FastAPI gatekeeper for {gatekeeper_ip}")
         # Pass the three parameters to the bash script
-        subprocess.run([git_bash_path, "./setup_fastapi_gatekeeper.sh", gatekeeper_ip, trusted_host_ip], check=True)
+        subprocess.run([git_bash_path, "./setup_fastapi_gatekeeper_iptable.sh", gatekeeper_ip, trusted_host_ip], check=True)
         print(f"FastAPI gatekeeper setup completed for {gatekeeper_ip}")
     except subprocess.CalledProcessError as e:
         #print(f"Error during FastAPI gatekeeper setup for {gatekeeper_ip}: {e.stderr}")
@@ -80,7 +82,7 @@ def setup_trusted_host(trusted_host_ip, proxy_ip):
     try:
         print(f"Starting to set up FastAPI trusted_host for {trusted_host_ip}")
         # Pass the three parameters to the bash script
-        subprocess.run([git_bash_path, "./setup_fastapi_trusted_host.sh", trusted_host_ip, proxy_ip], check=True)
+        subprocess.run([git_bash_path, "./setup_fastapi_trusted_host_iptable.sh", trusted_host_ip, proxy_ip], check=True)
         print(f"FastAPI trusted_host setup completed for {trusted_host_ip}")
     except subprocess.CalledProcessError as e:
         #print(f"Error during FastAPI trusted_host setup for {trusted_host_ip}: {e.stderr}")
@@ -129,6 +131,7 @@ def main():
     key_name = creds['key_name']
     vpc_id = creds['vpc_id']
     subnets = creds['subnets']
+    security_group_id_sql_instances =""
 
     #print("Creating a security group...")
     #security_group_id = create_security_group('TP3_security_3', 'Security group for EC2 instances', vpc_id)
@@ -138,33 +141,35 @@ def main():
         print("Failed to create security group. Exiting.")
         return
 
+    # Creating a security group for gate keeper
+    print("Creating a security group for gatekeeper...")
+    security_group_id_gatekeeper = create_gatekeeper_security_group('TP3_SG_gatekeeper_ec2_instance', 'Security group for the Gatekeeper instance', vpc_id)
+    #security_group_id_gatekeeper = 'sg-0e85cae14839a77c4'
+    print(f"Created Security Group for gatekeeper ID: {security_group_id_gatekeeper}")
+
+    # Creating a security group for trusted host
+    print("Creating a security group for trustedhost...")
+    security_group_id_trustedhost = create_trusted_host_security_group('TP3_SG_trusted_host_ec2_instance', 'Security group for the Trusted Host node', vpc_id, security_group_id_gatekeeper)
+    #security_group_id_trustedhost = 'sg-0af8854f032e26287'
+    print(f"Created Security Group ID for trustedhost: {security_group_id_trustedhost}")
+
+    # Creating a security group for proxy
+    print("Creating a security group for proxy...")
+    security_group_id_proxy = create_proxy_security_group('TP3_SG_proxy_ec2_instance', 'Security group for the proxy instance', vpc_id, security_group_id_trustedhost)
+    #security_group_id_proxy = 'sg-0e85cae14839a77c4'
+    print(f"Created Security Group for proxy ID: {security_group_id_proxy}")
+
+
     print("Creating a security group for sql instances...")
-    #security_group_id_sql_instances = create_sql_instances_security_group('TP3_sql_instances_security', 'Security group for EC2 instances', vpc_id)
-    security_group_id_sql_instances = 'sg-09f852f5b957d1100'
+    security_group_id_sql_instances = create_sql_instances_security_group('TP3_SG_sql_ec2_instances', 'Security group for EC2 instances', vpc_id, security_group_id_proxy)
+    #security_group_id_sql_instances = 'sg-09f852f5b957d1100'
+    print(f"Created Security Group for sql instances ID: {security_group_id_sql_instances}")
 
     if not security_group_id_sql_instances:
         print("Failed to create security group. Exiting.")
         return
 
-    # Creating a security group for proxy
-    print("Creating a security group for proxy...")
-    #security_group_id_proxy = create_proxy_security_group('proxy_Security_Group', 'Security group for the proxy instance', vpc_id)
-    security_group_id_proxy = 'sg-0e85cae14839a77c4'
-    print(f"Created Security Group for proxy ID: {security_group_id_proxy}")
 
-    # Creating a security group for gate keeper
-    print("Creating a security group for gatekeeper...")
-    #security_group_id_gatekeeper = create_gatekeeper_security_group('Gatekeeper_Security_Group', 'Security group for the Gatekeeper instance', vpc_id)
-    security_group_id_gatekeeper = 'sg-0e85cae14839a77c4'
-    print(f"Created Security Group for gatekeeper ID: {security_group_id_gatekeeper}")
-
-
-    # Creating a security group for trusted host
-    print("Creating a security group for trustedhost...")
-    #security_group_id_trustedhost = create_trusted_host_security_group('Trusted_Host_Security_Group', 'Security group for the Trusted Host node', vpc_id, security_group_id_gatekeeper)
-    security_group_id_trustedhost = 'sg-0af8854f032e26287'
-    print(f"Created Security Group ID for trustedhost: {security_group_id_trustedhost}")
-  
 
     # Create 3 t2.micros instances
     print("Creating 3 t2.micro instance...")
@@ -172,17 +177,15 @@ def main():
     
     # Create 1 t2.large instance for Proxy
     print("Creating 1 t2.large instance for Proxy...")
-    proxy_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'Proxy')
+    proxy_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_proxy,'Role', 'Proxy')
 
     # Create 1 t2.large instance for gatekeeper
     print("Creating 1 t2.large instance for gatekeeper...")
-    # gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_gatekeeper,'Role', 'gatekeeper')
-    gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'gatekeeper')
+    gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_gatekeeper,'Role', 'gatekeeper')
 
     # Create 1 t2.large instance for trusted_host
     print("Creating 1 t2.large instance for trusted_host...")
-    # trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_trustedhost,'Role', 'trsusted_host')
-    trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'trsusted_host')
+    trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_trustedhost,'Role', 'trsusted_host')
 
     # Assign roles to instances
     manager_ip = instances[0].public_ip_address

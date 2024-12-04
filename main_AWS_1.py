@@ -1,7 +1,9 @@
 from create_AWS_security_groups import create_security_group
-from create_AWS_security_groups_sql_instances import create_sql_instances_security_group
 from create_AWS_security_groups_gatekeeper import create_gatekeeper_security_group
 from create_AWS_security_groups_trustedhost import create_trusted_host_security_group
+from create_AWS_security_groups_proxy import create_proxy_security_group
+from create_AWS_security_groups_sql_instances import create_sql_instances_security_group
+
 from create_AWS_EC2_Instances import create_ec2_instance
 from terminate import terminate_instances
 import json
@@ -9,7 +11,8 @@ import subprocess
 
 KEY_PATH="TP3_pem_3.pem" 
 
-def install_to_instance(ip_address):
+
+def install_to_instance(ip_address,):
     ip_parts = ip_address.split('.')
     git_bash_path = "C:/Program Files/Git/bin/bash.exe"
     try:
@@ -129,7 +132,7 @@ def main():
     vpc_id = creds['vpc_id']
     subnets = creds['subnets']
 
-    print("Creating a security group...")
+    #print("Creating a security group...")
     #security_group_id = create_security_group('TP3_security_3', 'Security group for EC2 instances', vpc_id)
     security_group_id = 'sg-0f0a0ae8d68301cac'
 
@@ -141,9 +144,15 @@ def main():
     #security_group_id_sql_instances = create_sql_instances_security_group('TP3_sql_instances_security', 'Security group for EC2 instances', vpc_id)
     security_group_id_sql_instances = 'sg-09f852f5b957d1100'
 
-    if not security_group_id:
+    if not security_group_id_sql_instances:
         print("Failed to create security group. Exiting.")
         return
+
+    # Creating a security group for proxy
+    print("Creating a security group for proxy...")
+    #security_group_id_proxy = create_proxy_security_group('proxy_Security_Group', 'Security group for the proxy instance', vpc_id)
+    security_group_id_proxy = 'sg-0e85cae14839a77c4'
+    print(f"Created Security Group for proxy ID: {security_group_id_proxy}")
 
     # Creating a security group for gate keeper
     print("Creating a security group for gatekeeper...")
@@ -153,6 +162,7 @@ def main():
 
 
     # Creating a security group for trusted host
+    print("Creating a security group for trustedhost...")
     #security_group_id_trustedhost = create_trusted_host_security_group('Trusted_Host_Security_Group', 'Security group for the Trusted Host node', vpc_id, security_group_id_gatekeeper)
     security_group_id_trustedhost = 'sg-0af8854f032e26287'
     print(f"Created Security Group ID for trustedhost: {security_group_id_trustedhost}")
@@ -164,49 +174,36 @@ def main():
     
     # Create 1 t2.large instance for Proxy
     print("Creating 1 t2.large instance for Proxy...")
-    #proxy_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'Proxy')
+    proxy_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'Proxy')
 
     # Create 1 t2.large instance for gatekeeper
     print("Creating 1 t2.large instance for gatekeeper...")
     # gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_gatekeeper,'Role', 'gatekeeper')
-    #gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'gatekeeper')
+    gatekeeper_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'gatekeeper')
 
     # Create 1 t2.large instance for trusted_host
     print("Creating 1 t2.large instance for trusted_host...")
     # trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id_trustedhost,'Role', 'trsusted_host')
-    #trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'trsusted_host')
+    trusted_instance = create_ec2_instance('t2.large', 1, key_name, security_group_id,'Role', 'trsusted_host')
 
     # Assign roles to instances
     manager_ip = instances[0].public_ip_address
     worker_ips = [instances[1].public_ip_address, instances[2].public_ip_address]
-    #proxy_ip = proxy_instance[0].public_ip_address
-    #gatekeeper_ip = gatekeeper_instance[0].public_ip_address
-    #trusted_host_ip = trusted_instance[0].public_ip_address
-
-    #manager_ip = '54.90.127.63'
-    #worker_ips = ['50.19.17.209', '54.197.77.239']
+    proxy_ip = proxy_instance[0].public_ip_address
+    gatekeeper_ip = gatekeeper_instance[0].public_ip_address
+    trusted_host_ip = trusted_instance[0].public_ip_address
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")
-    #print(f"Proxy IP: {proxy_ip}")
-    #print(f"Gatekeeper IP: {gatekeeper_ip}")
-    #print(f"Trusted host IP: {trusted_host_ip}")
+    print(f"Proxy IP: {proxy_ip}")
+    print(f"Gatekeeper IP: {gatekeeper_ip}")
+    print(f"Trusted host IP: {trusted_host_ip}")
 
     # Concating all instances
-    #all_instances = instances  #+ proxy_instance + gatekeeper_instance + trusted_instance
- 
-    #instance_ids = [instance.id for instance in all_instances]
+    all_instances = instances + proxy_instance + gatekeeper_instance + trusted_instance
+    instance_ids = [instance.id for instance in all_instances]
 
-    #install_to_manager_instance(manager_ip)
-    #master_log_file, master_log_pos = install_to_manager_instance(manager_ip)
 
-    #install_to_instanceM(manager_ip)
-    #install_to_instanceW(worker_ips[0], manager_ip)
-   
-    #master_log_file, master_log_pos = install_to_manager_instance(manager_ip)
-    #install_to_worker_instance(worker_ips[0], manager_ip, master_log_file, master_log_pos)
-
-    install_to_sql_cluster(manager_ip, worker_ips[0], worker_ips[1])
     # Installing in Instances
     for instance in instances:
         
@@ -217,6 +214,7 @@ def main():
         else:
             print(f"No public IP found for instance {instance.id}")
 
+    install_to_sql_cluster(manager_ip, worker_ips[0], worker_ips[1])
 
     
     print(f"Manager IP: {manager_ip}")
@@ -226,17 +224,16 @@ def main():
     print(f"Trusted host IP: {trusted_host_ip}")
 
     # Deply worker_fastapi.py on the worker instances
-    #setup_worker(worker_ips[0])
-    #setup_worker(worker_ips[1])
-    #setup_manager(manager_ip)
+    setup_worker(worker_ips[0])
+    setup_worker(worker_ips[1])
+    setup_manager(manager_ip)
     
     # Deploy proxy_server_fastapi_route.py on the the proxy instance
-    #setup_proxy(proxy_ip, manager_ip, worker_ips)
+    setup_proxy(proxy_ip, manager_ip, worker_ips)
 
     # Deploy gatekeeper and trusted_host on the related instances
-    #setup_gatekeeper(gatekeeper_ip, trusted_host_ip)
-    #setup_trusted_host(trusted_host_ip, proxy_ip)
-    
+    setup_gatekeeper(gatekeeper_ip, trusted_host_ip)
+    setup_trusted_host(trusted_host_ip, proxy_ip)
 
     print(f"Manager IP: {manager_ip}")
     print(f"Worker IPs: {worker_ips}")

@@ -55,25 +55,89 @@ def create_gatekeeper_security_group(group_name, description, vpc_id):
                     'ToPort': 8000,
                     'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Allow public access to Gatekeeper
                 },
+                {   
+                    'IpProtocol': 'icmp', 
+                    'FromPort': -1, 
+                    'ToPort': -1, 
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                }   
             ]
         )
         print(f"Ingress rules added to security group {group_name}.")
         
-        '''
+        
         # Add outbound rules (Allow all outbound traffic for internal communication)
         ec2_client.authorize_security_group_egress(
             GroupId=security_group_id,
             IpPermissions=[
                 {
-                    'IpProtocol': '-1',  # All protocols
-                    'FromPort': -1,
-                    'ToPort': -1,
-                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Open outbound traffic
+                    'IpProtocol': 'icmp',  # ICMP protocol
+                    'FromPort': -1,        # -1 indicates all ICMP types
+                    'ToPort': -1,          # -1 indicates all ICMP codes
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Allow ICMP from all IPs (for ping)
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 22,  # SSH
+                    'ToPort': 22,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Open to all IPs 
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 80,
+                    'ToPort': 80,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 443,
+                    'ToPort': 443,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 8000,  # FastAPI Application Port
+                    'ToPort': 8000,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Allow public access to Gatekeeper
                 }
             ]
         )
         print(f"Egress rules added to security group {group_name}.")
-        '''
+
+        # Add inbound rules (Allow access from Gatekeeper)
+        ec2_client.authorize_security_group_ingress(
+            GroupId=security_group_id,
+            IpPermissions=[
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 80,
+                    'ToPort': 80,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 443,
+                    'ToPort': 443,
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 8000,  # FastAPI Application Port
+                    'ToPort': 8000,
+                    #'UserIdGroupPairs': [{'GroupId': trustedhost_security_group_id}]
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+                },
+                {
+                    'IpProtocol': 'tcp',
+                    'FromPort': 22,  # SSH
+                    'ToPort': 22,
+                    #'IpRanges': [{'CidrIp': '70.53.177.126/32'}]  # Replace 'YOUR_IP/32' with your IP
+                    'IpRanges': [{'CidrIp': '0.0.0.0/0'}]  # Open to all IPs 
+                },
+            ]
+        )
+        print(f"Ingress rules added to security group {group_name}.")
+        
         return security_group_id
 
     except ClientError as e:
